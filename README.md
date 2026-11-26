@@ -52,3 +52,18 @@ Files: `data/train.csv`, `data/val.csv`, `data/test.csv` (same columns as above)
 | category | DistilBERT | 1.00 | 1.00 | 1.00 | 1.00 | 204 s | 28.0 ms |
 | priority | TF-IDF + LogReg | 0.79 | 0.78 | 0.76 | 0.76 | 0 s | 1.0 ms |
 | priority | DistilBERT | 0.81 | 0.80 | 0.76 | 0.76 | 226 s | 27.2 ms |
+
+## Analysis and deployment decision
+
+### Where DistilBERT wins and where the baseline is enough
+- **Category:** both models score 1.00 accuracy and 1.00 macro F1. The synthetic tickets contain clear keywords, so TF-IDF + Logistic Regression is already enough.
+- **Priority:** DistilBERT is slightly better on validation (macro F1 0.80 vs 0.78) but on the test set both reach 0.76 accuracy (macro F1 0.761 vs 0.758). With 102 test tickets, one ticket is about 1%, so this gap is noise.
+- Priority has a low ceiling for every model because about 20% of tickets use urgency wording that does not match their label.
+
+### Model chosen for deployment: TF-IDF + Logistic Regression
+1. On our test set DistilBERT gives no real accuracy gain: category is 1.00 for both and priority is 0.76 for both.
+2. The baseline is about 28x faster per ticket (1 ms vs 28 ms on CPU) and trains in under a second instead of 3-4 minutes.
+3. The baseline is a few hundred KB and runs on any CPU. DistilBERT is about 250 MB and needs more memory, so hosting cost is higher for no gain.
+4. Decision: deploy the TF-IDF + Logistic Regression baseline for both category and priority.
+5. Caveat: this data is synthetic with clear keywords. On real tickets with typos and paraphrases DistilBERT will likely win, so re-evaluate on real data before switching.
+
