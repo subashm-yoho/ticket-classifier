@@ -38,3 +38,10 @@ the models are not tested on an unrealistically easy dataset.
 | Test (15%) | 102 |
 
 Files: `data/train.csv`, `data/val.csv`, `data/test.csv` (same columns as above).
+
+## Baseline (TF-IDF + Logistic Regression)
+- Tuned ngram_range and C with 5-fold CV (macro F1).
+- Validation: Category accuracy __, macro F1 __ | Priority accuracy __, macro F1 __
+- Category is near perfect because synthetic tickets use clear keywords. Priority is harder because urgency wording is noisy.
+- Bonus: character n-grams did not help (or helped by __), see results/baseline_char_ngram_comparison.csv
+- Model files: models/baseline_category.joblib, models/baseline_priority.joblib
