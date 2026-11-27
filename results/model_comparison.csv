@@ -1,0 +1,5 @@
+label,model,val_accuracy,val_macro_f1,test_accuracy,test_macro_f1,train_time_s,inference_ms_per_ticket
+category,TF-IDF + LogReg,1.0,1.0,1.0,1.0,0.2,0.98
+category,DistilBERT,1.0,1.0,1.0,1.0,203.8,28.02
+priority,TF-IDF + LogReg,0.7941,0.7778,0.7647,0.7579,0.1,0.97
+priority,DistilBERT,0.8137,0.8013,0.7647,0.7613,226.2,27.21

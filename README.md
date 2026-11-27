@@ -38,3 +38,97 @@ the models are not tested on an unrealistically easy dataset.
 | Test (15%) | 102 |
 
 Files: `data/train.csv`, `data/val.csv`, `data/test.csv` (same columns as above).
+
+## Baseline (TF-IDF + Logistic Regression)
+- Tuned ngram_range and C with 5-fold CV (macro F1).
+- Validation: Category accuracy __, macro F1 __ | Priority accuracy __, macro F1 __
+- Category is near perfect because synthetic tickets use clear keywords. Priority is harder because urgency wording is noisy.
+- Bonus: character n-grams did not help (or helped by __), see results/baseline_char_ngram_comparison.csv
+- Model files: models/baseline_category.joblib, models/baseline_priority.joblib
+
+| Label | Model | Val Acc | Val Macro F1 | Test Acc | Test Macro F1 | Training time | Inference / ticket |
+|---|---|---|---|---|---|---|---|
+| category | TF-IDF + LogReg | 1.00 | 1.00 | 1.00 | 1.00 | 0 s | 1.0 ms |
+| category | DistilBERT | 1.00 | 1.00 | 1.00 | 1.00 | 204 s | 28.0 ms |
+| priority | TF-IDF + LogReg | 0.79 | 0.78 | 0.76 | 0.76 | 0 s | 1.0 ms |
+| priority | DistilBERT | 0.81 | 0.80 | 0.76 | 0.76 | 226 s | 27.2 ms |
+
+## Analysis and deployment decision
+
+### Where DistilBERT wins and where the baseline is enough
+- **Category:** both models score 1.00 accuracy and 1.00 macro F1. The synthetic tickets contain clear keywords, so TF-IDF + Logistic Regression is already enough.
+- **Priority:** DistilBERT is slightly better on validation (macro F1 0.80 vs 0.78) but on the test set both reach 0.76 accuracy (macro F1 0.761 vs 0.758). With 102 test tickets, one ticket is about 1%, so this gap is noise.
+- Priority has a low ceiling for every model because about 20% of tickets use urgency wording that does not match their label.
+
+### Model chosen for deployment: TF-IDF + Logistic Regression
+1. On our test set DistilBERT gives no real accuracy gain: category is 1.00 for both and priority is 0.76 for both.
+2. The baseline is about 28x faster per ticket (1 ms vs 28 ms on CPU) and trains in under a second instead of 3-4 minutes.
+3. The baseline is a few hundred KB and runs on any CPU. DistilBERT is about 250 MB and needs more memory, so hosting cost is higher for no gain.
+4. Decision: deploy the TF-IDF + Logistic Regression baseline for both category and priority.
+5. Caveat: this data is synthetic with clear keywords. On real tickets with typos and paraphrases DistilBERT will likely win, so re-evaluate on real data before switching.
+
+## API (FastAPI)
+
+Serves the deployed model (TF-IDF + Logistic Regression baseline, see "Analysis and
+deployment decision"). Models are loaded once at startup.
+
+### Run
+
+```bash
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+```
+
+Open http://127.0.0.1:8000/docs for the interactive Swagger page.
+
+### Endpoints
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/health` | Service and model status |
+| POST | `/predict` | Classify one ticket |
+| POST | `/predict-batch` | Classify up to 100 tickets (bonus) |
+
+`confidence` is the lower of the category and priority probabilities.
+Empty, blank or missing `text` returns HTTP 422.
+
+### Example requests
+
+Windows PowerShell (use `curl.exe`, not `curl`):
+
+```powershell
+curl.exe http://127.0.0.1:8000/health
+
+curl.exe -X POST http://127.0.0.1:8000/predict -H "Content-Type: application/json" -d "{\"text\": \"I was charged twice\"}"
+
+curl.exe -X POST http://127.0.0.1:8000/predict-batch -H "Content-Type: application/json" -d "{\"tickets\": [{\"text\": \"I was charged twice\"}, {\"text\": \"my order has not arrived yet\"}]}"
+```
+
+Linux / macOS:
+
+```bash
+curl http://127.0.0.1:8000/health
+
+curl -X POST http://127.0.0.1:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{"text": "I was charged twice"}'
+```
+
+Example response:
+
+```json
+{"category": "Billing", "priority": "High", "confidence": 0.93}
+```
+
+Empty text:
+
+```bash
+curl -X POST http://127.0.0.1:8000/predict -H "Content-Type: application/json" -d '{"text": ""}'
+# HTTP 422 Unprocessable Entity
+```
+
+### Tests
+
+```bash
+python -m pytest -v
+```

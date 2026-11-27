@@ -1,0 +1,5 @@
+label,features,accuracy,macro_f1
+category,word only,1.0,1.0
+category,word + char (2-5),1.0,1.0
+priority,word only,0.7941,0.7778
+priority,word + char (2-5),0.7647,0.7436
