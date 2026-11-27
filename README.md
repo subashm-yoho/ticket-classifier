@@ -67,3 +67,68 @@ Files: `data/train.csv`, `data/val.csv`, `data/test.csv` (same columns as above)
 4. Decision: deploy the TF-IDF + Logistic Regression baseline for both category and priority.
 5. Caveat: this data is synthetic with clear keywords. On real tickets with typos and paraphrases DistilBERT will likely win, so re-evaluate on real data before switching.
 
+## API (FastAPI)
+
+Serves the deployed model (TF-IDF + Logistic Regression baseline, see "Analysis and
+deployment decision"). Models are loaded once at startup.
+
+### Run
+
+```bash
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+```
+
+Open http://127.0.0.1:8000/docs for the interactive Swagger page.
+
+### Endpoints
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/health` | Service and model status |
+| POST | `/predict` | Classify one ticket |
+| POST | `/predict-batch` | Classify up to 100 tickets (bonus) |
+
+`confidence` is the lower of the category and priority probabilities.
+Empty, blank or missing `text` returns HTTP 422.
+
+### Example requests
+
+Windows PowerShell (use `curl.exe`, not `curl`):
+
+```powershell
+curl.exe http://127.0.0.1:8000/health
+
+curl.exe -X POST http://127.0.0.1:8000/predict -H "Content-Type: application/json" -d "{\"text\": \"I was charged twice\"}"
+
+curl.exe -X POST http://127.0.0.1:8000/predict-batch -H "Content-Type: application/json" -d "{\"tickets\": [{\"text\": \"I was charged twice\"}, {\"text\": \"my order has not arrived yet\"}]}"
+```
+
+Linux / macOS:
+
+```bash
+curl http://127.0.0.1:8000/health
+
+curl -X POST http://127.0.0.1:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{"text": "I was charged twice"}'
+```
+
+Example response:
+
+```json
+{"category": "Billing", "priority": "High", "confidence": 0.93}
+```
+
+Empty text:
+
+```bash
+curl -X POST http://127.0.0.1:8000/predict -H "Content-Type: application/json" -d '{"text": ""}'
+# HTTP 422 Unprocessable Entity
+```
+
+### Tests
+
+```bash
+python -m pytest -v
+```
